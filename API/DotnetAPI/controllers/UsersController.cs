@@ -15,14 +15,14 @@ namespace DotnetAPI.Controllers
         [HttpGet]
         public async Task<ActionResult<IEnumerable<User>>> GetUsers()
         {
-            return await _context.Users.ToListAsync();
+            return _context.Users.ToList();
         }
 
         [Route("users/{Id}")]
         [HttpGet]
         public async Task<ActionResult<User>> GetUser(Guid Id)
         {
-            var user = await _context.Users.FindAsync(Id);
+            var user = _context.Users.Find(Id);
             if (user == null)
             {
                 return NotFound("This user does not exist.");
@@ -32,7 +32,7 @@ namespace DotnetAPI.Controllers
 
         [Route("users")]
         [HttpPost]
-        public async Task<ActionResult<StatusCodeHttpResult>> PostUser(User user)
+        public async Task<ActionResult<User>> PostUser(User user)
         {
             if (user.Name == "" || user.Name == null)
             {
@@ -42,31 +42,26 @@ namespace DotnetAPI.Controllers
             {
                 return BadRequest("Users must include an email.");
             }
-            if (_context.Users.Find(user.Email) != null)
+            if (_context.Users.FirstOrDefault(u => u.Email == user.Email) != null)
             {
                 return BadRequest("This email is already in use.");
             }
-            user.Id = Guid.NewGuid();
-            user.CreatedAt = DateTime.Now;
-            user.UpdatedAt = DateTime.Now;
             _context.Users.Add(user);
-            await _context.SaveChangesAsync();
-            return Ok();
+            _context.Entry(user).State = EntityState.Added;
+            _context.SaveChanges();
+            return Created();
         }
 
         [Route("users/{Id}")]
         [HttpPut]
-        public async Task<ActionResult<StatusCodeHttpResult>> PutUser(Guid Id, User user)
+        public async Task<ActionResult<User>> PutUser(Guid Id, User user)
         {
-            if (Id != user.Id)
-            {
-                return BadRequest("The provided ID and the provided user's ID do not match.");
-            }
-            user.UpdatedAt = DateTime.Now;
-            _context.Entry(user).State = EntityState.Modified;
+            user.Id = Id; // easily ensure that user's Id matches, rather than newly generated Id; avoids rejecting Id in request body
+            _context.Entry(user).State = EntityState.Modified; // updating UpdatedAt handled in the DbContext
             try
             {
-                await _context.SaveChangesAsync();
+                _context.Users.Update(user);
+                _context.SaveChanges();
             }
             catch (DbUpdateConcurrencyException)
             {
@@ -84,15 +79,15 @@ namespace DotnetAPI.Controllers
 
         [Route("users/{Id}")]
         [HttpDelete]
-        public async Task<ActionResult<StatusCodeHttpResult>> DeleteUser(Guid Id)
+        public async Task<ActionResult<User>> DeleteUser(Guid Id)
         {
-            var user = await _context.Users.FindAsync(Id);
+            var user = _context.Users.Find(Id);
             if (user == null)
             {
-                return NotFound();
+                return NotFound("Invalid user ID: This user does not exist.");
             }
             _context.Users.Remove(user);
-            await _context.SaveChangesAsync();
+            _context.SaveChanges();
             return Ok("Deleted user.");
         }
     }
