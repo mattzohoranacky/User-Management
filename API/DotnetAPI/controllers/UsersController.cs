@@ -32,6 +32,10 @@ namespace DotnetAPI.Controllers
         public async Task<ActionResult<User>> PostUser(User user)
         {
             user.Id = Guid.Empty;
+            if (user.DateOfBirth.AddYears(18) > DateTime.Now)
+            {
+                return BadRequest("User must be at least 18 years old.");
+            }
             if (user.Name == "")
             {
                 return BadRequest("Name cannot be empty.");
