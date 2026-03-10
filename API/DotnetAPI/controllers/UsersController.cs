@@ -1,9 +1,6 @@
-using System.Threading.Tasks;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using DotnetAPI.Data;
-using Microsoft.AspNetCore.Http.HttpResults;
 
 namespace DotnetAPI.Controllers
 {
@@ -34,6 +31,7 @@ namespace DotnetAPI.Controllers
         [HttpPost]
         public async Task<ActionResult<User>> PostUser(User user)
         {
+            user.Id = Guid.Empty;
             if (user.Name == "" || user.Name == null)
             {
                 return BadRequest("Users must include a name.");
