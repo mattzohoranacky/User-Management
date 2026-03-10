@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace DotnetAPI.Data
@@ -6,7 +7,9 @@ namespace DotnetAPI.Data
   {
     [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
     public Guid Id { get; set; }
+    [StringLength(100)]
     public required string Name { get; set; }
+    [EmailAddress]
     public required string Email { get; set; }
     public DateTime DateOfBirth { get; set;}
   }
