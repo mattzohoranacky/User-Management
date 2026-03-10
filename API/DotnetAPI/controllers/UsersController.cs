@@ -32,13 +32,13 @@ namespace DotnetAPI.Controllers
         public async Task<ActionResult<User>> PostUser(User user)
         {
             user.Id = Guid.Empty;
-            if (user.Name == "" || user.Name == null)
+            if (user.Name == "")
             {
-                return BadRequest("Users must include a name.");
+                return BadRequest("Name cannot be empty.");
             }
-            if (user.Email == "" || user.Email == null)
+            if (user.Email == "")
             {
-                return BadRequest("Users must include an email.");
+                return BadRequest("Email cannot be empty.");
             }
             if (_context.Users.FirstOrDefault(u => u.Email == user.Email) != null)
             {
