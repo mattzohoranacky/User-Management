@@ -59,6 +59,10 @@ namespace DotnetAPI.Controllers
         public async Task<ActionResult<User>> PutUser(Guid Id, User user)
         {
             user.Id = Id; // easily ensure that user's Id matches, rather than newly generated Id; avoids rejecting Id in request body
+            if (_context.Users.FirstOrDefault(u => u.Email == user.Email && u.Id != Id) != null)
+            {
+                return BadRequest("This email is already in use.");
+            }
             _context.Entry(user).State = EntityState.Modified; // updating UpdatedAt handled in the DbContext
             try
             {
