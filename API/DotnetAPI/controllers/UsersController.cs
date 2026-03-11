@@ -40,8 +40,8 @@ namespace DotnetAPI.Controllers
                         string[] ageFilterParts = ageFilter.Split("TO");
                         int ageMin = Convert.ToInt16(Regex.Match(ageFilterParts[0], @"\d+").Value);
                         int ageMax = Convert.ToInt16(Regex.Match(ageFilterParts[1], @"\d+").Value);
-                        set = set.Where(u => u.DateOfBirth >= DateTime.Today.AddYears(-ageMin));
-                        set = set.Where(u => u.DateOfBirth <= DateTime.Today.AddYears(-ageMax+1).AddSeconds(1));
+                        set = set.Where(u => u.DateOfBirth >= DateTime.Today.AddYears(-ageMax-1).AddDays(1)
+                            && u.DateOfBirth <= DateTime.Today.AddYears(-ageMin));
                     } catch (Exception e)
                     {
                         return StatusCode(500, "Sorting failed due to exception: " + e.Message);
@@ -49,7 +49,7 @@ namespace DotnetAPI.Controllers
                 } else if (Regex.IsMatch(ageFilter, @"^\d*$"))
                 {
                     int age = Convert.ToInt16(Regex.Match(ageFilter, @"\d+").Value);
-                    set = set.Where(u => u.DateOfBirth >= DateTime.Today.AddYears(-age-1).AddSeconds(1)
+                    set = set.Where(u => u.DateOfBirth >= DateTime.Today.AddYears(-age-1).AddDays(1)
                         && u.DateOfBirth <= DateTime.Today.AddYears(-age));
                 } else
                 {
