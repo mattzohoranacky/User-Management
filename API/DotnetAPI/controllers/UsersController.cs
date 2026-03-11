@@ -8,7 +8,7 @@ namespace DotnetAPI.Controllers
 {
     [Route("~/")]
     [ApiController]
-    public class UserController(ProgramDbContext _context) : ControllerBase
+    public partial class UserController(ProgramDbContext _context) : ControllerBase
     {
         [Route("users")]
         [HttpGet]
@@ -33,22 +33,22 @@ namespace DotnetAPI.Controllers
             }
             if (!string.IsNullOrEmpty(ageFilter))
             {
-                if (Regex.IsMatch(ageFilter, @"^[\[]\d*[ ]TO[ ]\d*[\]]$"))
+                if (AgeRangeRegex().IsMatch(ageFilter))
                 {
                     try
                     {
                         string[] ageFilterParts = ageFilter.Split("TO");
-                        int ageMin = Convert.ToInt16(Regex.Match(ageFilterParts[0], @"\d+").Value);
-                        int ageMax = Convert.ToInt16(Regex.Match(ageFilterParts[1], @"\d+").Value);
+                        int ageMin = Convert.ToInt16(AgeIntRegex().Match(ageFilterParts[0]).Value);
+                        int ageMax = Convert.ToInt16(AgeIntRegex().Match(ageFilterParts[1]).Value);
                         set = set.Where(u => u.DateOfBirth >= DateTime.Today.AddYears(-ageMax-1).AddDays(1)
                             && u.DateOfBirth <= DateTime.Today.AddYears(-ageMin));
                     } catch (Exception e)
                     {
                         return StatusCode(500, "Sorting failed due to exception: " + e.Message);
                     }
-                } else if (Regex.IsMatch(ageFilter, @"^\d*$"))
+                } else if (AgeSingleRegex().IsMatch(ageFilter))
                 {
-                    int age = Convert.ToInt16(Regex.Match(ageFilter, @"\d+").Value);
+                    int age = Convert.ToInt16(AgeSingleRegex().Match(ageFilter).Value);
                     set = set.Where(u => u.DateOfBirth >= DateTime.Today.AddYears(-age-1).AddDays(1)
                         && u.DateOfBirth <= DateTime.Today.AddYears(-age));
                 } else
@@ -172,5 +172,12 @@ namespace DotnetAPI.Controllers
             _context.SaveChanges();
             return Ok("Deleted user.");
         }
-    }
+
+    [GeneratedRegex(@"^[\[]\d{1,3}[ ]TO[ ]\d{1,3}[\]]$")]
+    private static partial Regex AgeRangeRegex(); // bonus: allows for a 1-line edit to change format later, if needed
+    [GeneratedRegex(@"^\d{1,3}$")]
+    private static partial Regex AgeSingleRegex();
+    [GeneratedRegex(@"\d{1,3}")]
+    private static partial Regex AgeIntRegex();
+  }
 }
