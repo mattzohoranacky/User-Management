@@ -14,14 +14,14 @@ namespace DotnetAPI.Controllers
         [HttpGet]
         public async Task<ActionResult<IEnumerable<User>>> GetUsers()
         {
-            string sortBy = Request.Query["sortBy"];
+            string sortBy = Request.Query["sortBy"]!;
             if (string.IsNullOrEmpty(sortBy))
             {
                 sortBy = "name:asc";
             }
-            string nameFilter = Request.Query["name"];
-            string emailFilter = Request.Query["email"];
-            string ageFilter = Request.Query["age"];
+            string nameFilter = Request.Query["name"]!;
+            string emailFilter = Request.Query["email"]!;
+            string ageFilter = Request.Query["age"]!;
             IQueryable<User> set = _context.Users;
             if (!string.IsNullOrEmpty(nameFilter))
             {
