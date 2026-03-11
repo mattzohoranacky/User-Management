@@ -91,13 +91,13 @@ namespace DotnetAPI.Controllers
             }
             if (!string.IsNullOrEmpty(page))
             {
-                if (!Regex.IsMatch(page, @"^\d+$"))
+                if (!Regex.IsMatch(page, @"^\d{1,8}$"))
                 {
-                    return BadRequest("Invalid format for value of page \"p\". Page must be a positive integer.\n\n" +
+                    return BadRequest("Invalid format for value of page \"p\". Page must be a positive integer of up to 8 digits.\n\n" +
                     "\"http://localhost:5152/users?p=1\" will retrieve the first page.\n" +
                     "If the page requested is less than 1, the first page will be displayed.");
                 }
-                int PageNumber = Convert.ToInt32(Regex.Match(page, @"^\d+$").Value);
+                int PageNumber = Convert.ToInt32(Regex.Match(page, @"^\d{1,8}$").Value);
                 if (PageNumber < 1)
                 {
                     PageNumber = 1;
