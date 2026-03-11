@@ -22,7 +22,38 @@ namespace DotnetAPI.Controllers
             string nameFilter = Request.Query["name"]!;
             string emailFilter = Request.Query["email"]!;
             string ageFilter = Request.Query["age"]!;
+            string page = Request.Query["page"]!;
             IQueryable<User> set = _context.Users;
+            switch (sortBy)
+            {
+                case "name:asc":
+                    set = set.OrderBy(u => u.Name);
+                    break;
+                case "name:desc":
+                    set = set.OrderByDescending(u => u.Name);
+                    break;
+                case "email:asc":
+                    set = set.OrderBy(u => u.Email);
+                    break;
+                case "email:desc":
+                    set = set.OrderByDescending(u => u.Email);
+                    break;
+                case "age:asc":
+                    set = set.OrderByDescending(u => u.DateOfBirth);
+                    break;
+                case "age:desc":
+                    set = set.OrderBy(u => u.DateOfBirth);
+                    break;
+                default:
+                    return BadRequest("Invalid sorting option: \"" + sortBy + 
+                            "\".\nValid sorting options include:\n" +
+                            "\t\"name:asc\"\n" +
+                            "\t\"name:desc\"\n" + 
+                            "\t\"email:asc\"\n" +
+                            "\t\"email:desc\"\n" +
+                            "\t\"age:asc\"\n" +
+                            "\t\"age:desc\"");
+            }
             if (!string.IsNullOrEmpty(nameFilter))
             {
                 set = set.Where(u => u.Name.Contains(nameFilter));
@@ -58,37 +89,16 @@ namespace DotnetAPI.Controllers
                         "\t\"#\" to get all users of a certain age (\"age=18\")");
                 }
             }
-            switch (sortBy)
+            if (!string.IsNullOrEmpty(page))
             {
-                case "name:asc":
-                    set = set.OrderBy(u => u.Name);
-                    break;
-                case "name:desc":
-                    set = set.OrderByDescending(u => u.Name);
-                    break;
-                case "email:asc":
-                    set = set.OrderBy(u => u.Email);
-                    break;
-                case "email:desc":
-                    set = set.OrderByDescending(u => u.Email);
-                    break;
-                case "age:asc":
-                    set = set.OrderByDescending(u => u.DateOfBirth);
-                    break;
-                case "age:desc":
-                    set = set.OrderBy(u => u.DateOfBirth);
-                    break;
-                default:
-                    return BadRequest("Invalid sorting option: \"" + sortBy + 
-                            "\".\nValid sorting options include:\n" +
-                            "\t\"name:asc\"\n" +
-                            "\t\"name:desc\"\n" + 
-                            "\t\"email:asc\"\n" +
-                            "\t\"email:desc\"\n" +
-                            "\t\"age:asc\"\n" +
-                            "\t\"age:desc\"");
+                int PageNumber = Convert.ToInt16(AgeSingleRegex().Match(page).Value);
+                var value = await set.Skip(PageNumber * PageLength).Take(PageLength).ToListAsync();
+                return value;
+            } else
+            {
+                var value = await set.Take(PageLength).ToListAsync();
+                return value;
             }
-            return set.ToList();
         }
 
         [Route("users/{Id}")]
@@ -173,11 +183,15 @@ namespace DotnetAPI.Controllers
             return Ok("Deleted user.");
         }
 
-    [GeneratedRegex(@"^[\[]\d{1,3}[ ]TO[ ]\d{1,3}[\]]$")]
-    private static partial Regex AgeRangeRegex(); // bonus: allows for a 1-line edit to change format later, if needed
-    [GeneratedRegex(@"^\d{1,3}$")]
-    private static partial Regex AgeSingleRegex();
-    [GeneratedRegex(@"\d{1,3}")]
-    private static partial Regex AgeIntRegex();
-  }
+        [GeneratedRegex(@"^[\[]\d{1,3}[ ]TO[ ]\d{1,3}[\]]$")]
+        private static partial Regex AgeRangeRegex(); // bonus: allows for a 1-line edit to change format later, if needed
+        [GeneratedRegex(@"^\d{1,3}$")]
+        private static partial Regex AgeSingleRegex(); // used to test *and* read single-age filter
+        [GeneratedRegex(@"\d{1,3}")]
+        private static partial Regex AgeIntRegex(); // used to read pre-tested (AgeRangeRegex) two-age filter
+        [GeneratedRegex(@"\d+")]
+        private static partial Regex numberRegex(); // used to read page #s, which could be *extremely* large numbers
+
+        private static int PageLength = 5; // small page length/size so pagination can be seen with few users
+    }
 }
