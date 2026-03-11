@@ -8,7 +8,7 @@ namespace DotnetAPI.Controllers
 {
     [Route("~/")]
     [ApiController]
-    public partial class UserController(ProgramDbContext _context) : ControllerBase
+    public class UserController(ProgramDbContext _context) : ControllerBase
     {
         [Route("users")]
         [HttpGet]
@@ -64,22 +64,22 @@ namespace DotnetAPI.Controllers
             }
             if (!string.IsNullOrEmpty(ageFilter))
             {
-                if (AgeRangeRegex().IsMatch(ageFilter))
+                if (Regex.IsMatch(ageFilter, @"^[\[]\d{1,3}[ ]TO[ ]\d{1,3}[\]]$"))
                 {
                     try
                     {
                         string[] ageFilterParts = ageFilter.Split("TO");
-                        int ageMin = Convert.ToInt16(AgeIntRegex().Match(ageFilterParts[0]).Value);
-                        int ageMax = Convert.ToInt16(AgeIntRegex().Match(ageFilterParts[1]).Value);
+                        int ageMin = Convert.ToInt16(Regex.Match(ageFilterParts[0], @"\d{1,3}").Value);
+                        int ageMax = Convert.ToInt16(Regex.Match(ageFilterParts[1], @"\d{1,3}").Value);
                         set = set.Where(u => u.DateOfBirth >= DateTime.Today.AddYears(-ageMax-1).AddDays(1)
                             && u.DateOfBirth <= DateTime.Today.AddYears(-ageMin));
                     } catch (Exception e)
                     {
                         return StatusCode(500, "Sorting failed due to exception: " + e.Message);
                     }
-                } else if (AgeSingleRegex().IsMatch(ageFilter))
+                } else if (Regex.IsMatch(ageFilter, @"^\d{1,3}$"))
                 {
-                    int age = Convert.ToInt16(AgeSingleRegex().Match(ageFilter).Value);
+                    int age = Convert.ToInt16(Regex.Match(ageFilter, @"^\d{1,3}$").Value);
                     set = set.Where(u => u.DateOfBirth >= DateTime.Today.AddYears(-age-1).AddDays(1)
                         && u.DateOfBirth <= DateTime.Today.AddYears(-age));
                 } else
@@ -91,7 +91,7 @@ namespace DotnetAPI.Controllers
             }
             if (!string.IsNullOrEmpty(page))
             {
-                int PageNumber = Convert.ToInt16(AgeSingleRegex().Match(page).Value);
+                int PageNumber = Convert.ToInt16(Regex.Match(page, @"^\d+$").Value);
                 var value = await set.Skip(PageNumber * PageLength).Take(PageLength).ToListAsync();
                 return value;
             } else
@@ -182,16 +182,6 @@ namespace DotnetAPI.Controllers
             _context.SaveChanges();
             return Ok("Deleted user.");
         }
-
-        [GeneratedRegex(@"^[\[]\d{1,3}[ ]TO[ ]\d{1,3}[\]]$")]
-        private static partial Regex AgeRangeRegex(); // bonus: allows for a 1-line edit to change format later, if needed
-        [GeneratedRegex(@"^\d{1,3}$")]
-        private static partial Regex AgeSingleRegex(); // used to test *and* read single-age filter
-        [GeneratedRegex(@"\d{1,3}")]
-        private static partial Regex AgeIntRegex(); // used to read pre-tested (AgeRangeRegex) two-age filter
-        [GeneratedRegex(@"\d+")]
-        private static partial Regex numberRegex(); // used to read page #s, which could be *extremely* large numbers
-
         private static int PageLength = 5; // small page length/size so pagination can be seen with few users
     }
 }
