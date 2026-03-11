@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using DotnetAPI.Data;
+using Microsoft.AspNetCore.Http.HttpResults;
+using System.Text.RegularExpressions;
 
 namespace DotnetAPI.Controllers
 {
@@ -12,7 +14,81 @@ namespace DotnetAPI.Controllers
         [HttpGet]
         public async Task<ActionResult<IEnumerable<User>>> GetUsers()
         {
-            return _context.Users.ToList();
+            string sortBy = Request.Query["sortBy"];
+            if (string.IsNullOrEmpty(sortBy))
+            {
+                sortBy = "name:asc";
+            }
+            string nameFilter = Request.Query["name"];
+            string emailFilter = Request.Query["email"];
+            string ageFilter = Request.Query["age"];
+            IQueryable<User> set = _context.Users;
+            if (!string.IsNullOrEmpty(nameFilter))
+            {
+                set = set.Where(u => u.Name.Contains(nameFilter));
+            }
+            if (!string.IsNullOrEmpty(emailFilter))
+            {
+                set = set.Where(u => u.Email.Contains(emailFilter));
+            }
+            if (!string.IsNullOrEmpty(ageFilter))
+            {
+                if (Regex.IsMatch(ageFilter, @"^[\[]\d*[ ]TO[ ]\d*[\]]$"))
+                {
+                    try
+                    {
+                        string[] ageFilterParts = ageFilter.Split("TO");
+                        int ageMin = Convert.ToInt16(Regex.Match(ageFilterParts[0], @"\d+").Value);
+                        int ageMax = Convert.ToInt16(Regex.Match(ageFilterParts[1], @"\d+").Value);
+                        set = set.Where(u => u.DateOfBirth >= DateTime.Today.AddYears(-ageMin));
+                        set = set.Where(u => u.DateOfBirth <= DateTime.Today.AddYears(-ageMax+1).AddSeconds(1));
+                    } catch (Exception e)
+                    {
+                        return StatusCode(500, "Sorting failed due to exception: " + e.Message);
+                    }
+                } else if (Regex.IsMatch(ageFilter, @"^\d*$"))
+                {
+                    int age = Convert.ToInt16(Regex.Match(ageFilter, @"\d+").Value);
+                    set = set.Where(u => u.DateOfBirth >= DateTime.Today.AddYears(-age-1).AddSeconds(1)
+                        && u.DateOfBirth <= DateTime.Today.AddYears(-age));
+                } else
+                {
+                    return BadRequest("Invalid format for value of \"age\". Valid formats:\n" +
+                        "\t\"[#+TO+#]\" to get all users within a range of ages (\"age=[18+TO+20]\")\n" +
+                        "\t\"#\" to get all users of a certain age (\"age=18\")");
+                }
+            }
+            switch (sortBy)
+            {
+                case "name:asc":
+                    set = set.OrderBy(u => u.Name);
+                    break;
+                case "name:desc":
+                    set = set.OrderByDescending(u => u.Name);
+                    break;
+                case "email:asc":
+                    set = set.OrderBy(u => u.Email);
+                    break;
+                case "email:desc":
+                    set = set.OrderByDescending(u => u.Email);
+                    break;
+                case "age:asc":
+                    set = set.OrderByDescending(u => u.DateOfBirth);
+                    break;
+                case "age:desc":
+                    set = set.OrderBy(u => u.DateOfBirth);
+                    break;
+                default:
+                    return BadRequest("Invalid sorting option: \"" + sortBy + 
+                            "\".\nValid sorting options include:\n" +
+                            "\t\"name:asc\"\n" +
+                            "\t\"name:desc\"\n" + 
+                            "\t\"email:asc\"\n" +
+                            "\t\"email:desc\"\n" +
+                            "\t\"age:asc\"\n" +
+                            "\t\"age:desc\"");
+            }
+            return set.ToList();
         }
 
         [Route("users/{Id}")]
