@@ -22,7 +22,7 @@ namespace DotnetAPI.Controllers
             string nameFilter = Request.Query["name"]!;
             string emailFilter = Request.Query["email"]!;
             string ageFilter = Request.Query["age"]!;
-            string page = Request.Query["page"]!;
+            string page = Request.Query["p"]!;
             IQueryable<User> set = _context.Users;
             switch (sortBy)
             {
@@ -91,8 +91,18 @@ namespace DotnetAPI.Controllers
             }
             if (!string.IsNullOrEmpty(page))
             {
-                int PageNumber = Convert.ToInt16(Regex.Match(page, @"^\d+$").Value);
-                var value = await set.Skip(PageNumber * PageLength).Take(PageLength).ToListAsync();
+                if (!Regex.IsMatch(page, @"^\d+$"))
+                {
+                    return BadRequest("Invalid format for value of page \"p\". Page must be a positive integer.\n\n" +
+                    "\"http://localhost:5152/users?p=1\" will retrieve the first page.\n" +
+                    "If the page requested is less than 1, the first page will be displayed.");
+                }
+                int PageNumber = Convert.ToInt32(Regex.Match(page, @"^\d+$").Value);
+                if (PageNumber < 1)
+                {
+                    PageNumber = 1;
+                }
+                var value = await set.Skip((PageNumber-1) * PageLength).Take(PageLength).ToListAsync();
                 return value;
             } else
             {
