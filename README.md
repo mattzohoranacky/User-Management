@@ -35,7 +35,7 @@
 - When using the API, __all__ data regarding a user should be returned.
 - Use of the API will never result in a page number of more than 8 digits.
 - Maximum page length/size should not be configurable by users of the API.
-- The only status codes that my code should create are the three listed (400, 404, 500).
+- The only error status codes that my code should create are the three listed (400, 404, 500).
 - Errors that are already handled and produce a message are acceptable as-is, so long as they do not cause further issues, such as the API crashing or failing to take in and act upon subsequent requests.
   - This refers to errors such as accessing a URL without a valid endpoint, such as [http://localhost:5152] or [http://localhost:5152/fakeEndpoint].
 
