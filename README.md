@@ -42,11 +42,11 @@
 ## Additional Features
 
 ### Recommended
-[x] Pagination on GET /users
-[ ] JWT Authentication 
-[ ] Unit Tests
-[ ] Swagger API Documentation
-[ ] Deploy with Docker
+- [x] Pagination on GET /users
+- [ ] JWT Authentication 
+- [ ] Unit Tests
+- [ ] Swagger API Documentation
+- [ ] Deploy with Docker
 
 ### Others Implemented
 - Filtering by age, name, and email combined
