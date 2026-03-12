@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using DotnetAPI.Data;
 using Microsoft.AspNetCore.Http.HttpResults;
 using System.Text.RegularExpressions;
+using System.Text;
 
 namespace DotnetAPI.Controllers
 {
@@ -23,14 +24,17 @@ namespace DotnetAPI.Controllers
         /// URL Parameters:
         /// 
         ///     sortBy
-        ///         valid options are: name:asc, name:desc, email:asc, email:desc, age:asc, age:desc.
+        ///         Valid options are: name:asc, name:desc, email:asc, email:desc, age:asc, age:desc.
         ///         Users are, by default, sorted by name in ascending order.
         /// 
         ///     name
         ///         "name=John" will retrieve users whose names include "John".
+        ///         "name=John:exact" will retrieve users whose names are "John".
         /// 
         ///     email
         ///         "email=@gmail" will retrieve users whose emails include "@gmail".
+        ///         "email=email@gmail.com:exact" will retrieve users whose emails are "email@gmail.com"
+        ///         Since user emails are unique, using ':exact' will only retrieve a single user.
         /// 
         ///     age
         ///         "age=20" will retrieve users that are 20 years old.
@@ -53,8 +57,8 @@ namespace DotnetAPI.Controllers
             {
                 sortBy = "name:asc";
             }
-            string nameFilter = Request.Query["name"]!;
-            string emailFilter = Request.Query["email"]!;
+            StringBuilder nameFilter = new StringBuilder(Request.Query["name"]);
+            StringBuilder emailFilter =  new StringBuilder(Request.Query["email"]);
             string ageFilter = Request.Query["age"]!;
             string page = Request.Query["p"]!;
             IQueryable<User> set = _context.Users;
@@ -88,13 +92,29 @@ namespace DotnetAPI.Controllers
                             "\t\"age:asc\"\n" +
                             "\t\"age:desc\"");
             }
-            if (!string.IsNullOrEmpty(nameFilter))
+            if (!string.IsNullOrEmpty(nameFilter.ToString()))
             {
-                set = set.Where(u => u.Name.Contains(nameFilter));
+                if (!Regex.IsMatch(nameFilter.ToString(), @".+:exact$"))
+                {
+                    set = set.Where(u => u.Name.Contains(nameFilter.ToString()));
+                } else
+                {
+                    nameFilter.Remove(nameFilter.Length-6, 6);
+                    set = set.Where(u => u.Name.Equals(nameFilter.ToString()));
+                    Console.WriteLine(nameFilter.ToString());
+                }
             }
-            if (!string.IsNullOrEmpty(emailFilter))
+            if (!string.IsNullOrEmpty(emailFilter.ToString()))
             {
-                set = set.Where(u => u.Email.Contains(emailFilter));
+                if (!Regex.IsMatch(emailFilter.ToString(), @".+:exact$"))
+                {
+                    set = set.Where(u => u.Email.Contains(emailFilter.ToString()));
+                } else
+                {
+                    emailFilter.Remove(emailFilter.Length-6, 6);
+                    set = set.Where(u => u.Email.Equals(emailFilter.ToString()));
+                    Console.WriteLine(emailFilter.ToString());
+                }
             }
             if (!string.IsNullOrEmpty(ageFilter))
             {
