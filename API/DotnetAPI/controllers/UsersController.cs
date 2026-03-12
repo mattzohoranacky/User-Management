@@ -6,10 +6,44 @@ using System.Text.RegularExpressions;
 
 namespace DotnetAPI.Controllers
 {
+    /// <summary>
+    /// Controls all User-related requests.
+    /// </summary>
+    /// <param name="_context"></param>
     [Route("~/")]
     [ApiController]
     public class UserController(ProgramDbContext _context) : ControllerBase
     {
+        /// <summary>
+        /// Retrieves a list of up to 5 users that fit the criteria defined by the URL parameters.
+        /// </summary>
+        /// <remarks>
+        /// The next 5 users are retrieved on the next page.
+        /// 
+        /// URL Parameters:
+        /// 
+        ///     sortBy
+        ///         valid options are: name:asc, name:desc, email:asc, email:desc, age:asc, age:desc.
+        ///         Users are, by default, sorted by name in ascending order.
+        /// 
+        ///     name
+        ///         "name=John" will retrieve users whose names include "John".
+        /// 
+        ///     email
+        ///         "email=@gmail" will retrieve users whose emails include "@gmail".
+        /// 
+        ///     age
+        ///         "age=20" will retrieve users that are 20 years old.
+        ///         "age=[20+TO+23]" will retrieve users that are between 20 years old and 23 years old, inclusive.
+        /// 
+        ///     p
+        ///         "p=1" will retrieve the first page of users.
+        ///         "p=0" will be treated as "p=1".
+        /// 
+        /// </remarks>
+        /// <response code="200"> Returns a list of users. </response>
+        /// <response code="400"> Provides a message about what input was invalid and how to properly use it. </response>
+        /// <response code="500"> Produces an error. </response>
         [Route("users")]
         [HttpGet]
         public async Task<ActionResult<IEnumerable<User>>> GetUsers()
@@ -111,6 +145,12 @@ namespace DotnetAPI.Controllers
             }
         }
 
+        /// <summary>
+        /// Gets a specific user by ID.
+        /// </summary>
+        /// <param name="Id"> The ID of the user to get. </param>
+        /// <response code="200"> Returns the user. </response>
+        /// <response code="404"> Provides a message stating that the user does not exist. </response>
         [Route("users/{Id}")]
         [HttpGet]
         public async Task<ActionResult<User>> GetUser(Guid Id)
@@ -123,6 +163,28 @@ namespace DotnetAPI.Controllers
             return user;
         }
 
+        /// <summary>
+        /// Creates a new user.
+        /// </summary>
+        /// <remarks>
+        /// The Id, CreatedAt, and UpdatedAt values are generated.
+        /// These can safely be left out of the request body.
+        /// Adding these as part of the request body will not impact the generated values.
+        /// 
+        /// The user's date of birth can be in date format (YYYY-MM-DD) or DateTime format.
+        /// 
+        /// Sample Request:
+        /// 
+        ///     POST users/7aba7140-b70a-44e5-b7f3-f483c98aad30
+        ///     {
+        ///         "name": "John",
+        ///         "email": "john@gmail.com",
+        ///         "dateOfBirth": "1983-03-10"
+        ///     }
+        /// </remarks>
+        /// <param name="user"> The user information to be inserted. </param>
+        /// <response code="201"> Creates the user. </response>
+        /// <response code="400"> Refuses to create the user and provides a message describing why. </response>
         [Route("users")]
         [HttpPost]
         public async Task<ActionResult<User>> PostUser(User user)
@@ -150,6 +212,28 @@ namespace DotnetAPI.Controllers
             return Created();
         }
 
+        /// <summary>
+        /// Updates a specific user's details.
+        /// </summary>
+        /// <remarks>
+        /// The Id, CreatedAt, and UpdatedAt values are generated and cannot be updated via this request.
+        /// These can safely be left out of the request body.
+        /// Adding these as part of the request body will not impact the generated values.
+        /// 
+        /// The user's date of birth can be in date format (YYYY-MM-DD) or DateTime format.
+        /// 
+        /// Sample Request:
+        /// 
+        ///     PUT users/7aba7140-b70a-44e5-b7f3-f483c98aad30
+        ///     {
+        ///         "name": "Bob",
+        ///         "email": "bob@live.com",
+        ///         "dateOfBirth": "2008-03-10"
+        ///     }
+        /// </remarks>
+        /// <param name="Id"> The ID of the user to update. </param>
+        /// <param name="user"> The user information to be inserted. </param>
+        /// <returns></returns>
         [Route("users/{Id}")]
         [HttpPut]
         public async Task<ActionResult<User>> PutUser(Guid Id, User user)
@@ -179,6 +263,12 @@ namespace DotnetAPI.Controllers
             return Ok("Updated user.");
         }
 
+        /// <summary>
+        /// Deletes a specific user by ID.
+        /// </summary>
+        /// <param name="Id"> The ID of the user to be deleted. </param>
+        /// <response code="200"> Deletes the user. </response>
+        /// <response code="404"> Provides a message stating that a user with that ID does not exist. </response>
         [Route("users/{Id}")]
         [HttpDelete]
         public async Task<ActionResult<User>> DeleteUser(Guid Id)

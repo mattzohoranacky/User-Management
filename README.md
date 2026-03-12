@@ -45,7 +45,7 @@
 - [x] Pagination on GET /users
 - [ ] JWT Authentication 
 - [ ] Unit Tests
-- [ ] Swagger API Documentation
+- [x] Swagger API Documentation
 - [ ] Deploy with Docker
 
 ### Others Implemented
