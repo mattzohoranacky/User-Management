@@ -3,13 +3,51 @@ using Microsoft.EntityFrameworkCore;
 using DotnetAPI.Data;
 using Microsoft.AspNetCore.Http.HttpResults;
 using System.Text.RegularExpressions;
+using System.Text;
 
 namespace DotnetAPI.Controllers
 {
+    /// <summary>
+    /// Controls all User-related requests.
+    /// </summary>
+    /// <param name="_context"></param>
     [Route("~/")]
     [ApiController]
-    public partial class UserController(ProgramDbContext _context) : ControllerBase
+    public class UserController(ProgramDbContext _context) : ControllerBase
     {
+        /// <summary>
+        /// Retrieves a list of up to 5 users that fit the criteria defined by the URL parameters.
+        /// </summary>
+        /// <remarks>
+        /// The next 5 users are retrieved on the next page.
+        /// 
+        /// URL Parameters:
+        /// 
+        ///     sortBy
+        ///         Valid options are: name:asc, name:desc, email:asc, email:desc, age:asc, age:desc.
+        ///         Users are, by default, sorted by name in ascending order.
+        /// 
+        ///     name
+        ///         "name=John" will retrieve users whose names include "John".
+        ///         "name=John:exact" will retrieve users whose names are "John".
+        /// 
+        ///     email
+        ///         "email=@gmail" will retrieve users whose emails include "@gmail".
+        ///         "email=email@gmail.com:exact" will retrieve users whose emails are "email@gmail.com"
+        ///         Since user emails are unique, using ':exact' will only retrieve a single user.
+        /// 
+        ///     age
+        ///         "age=20" will retrieve users that are 20 years old.
+        ///         "age=[20+TO+23]" will retrieve users that are between 20 years old and 23 years old, inclusive.
+        /// 
+        ///     p
+        ///         "p=1" will retrieve the first page of users.
+        ///         "p=0" will be treated as "p=1".
+        /// 
+        /// </remarks>
+        /// <response code="200"> Returns a list of users. </response>
+        /// <response code="400"> Provides a message about what input was invalid and how to properly use it. </response>
+        /// <response code="500"> Produces an error. </response>
         [Route("users")]
         [HttpGet]
         public async Task<ActionResult<IEnumerable<User>>> GetUsers()
@@ -19,10 +57,10 @@ namespace DotnetAPI.Controllers
             {
                 sortBy = "name:asc";
             }
-            string nameFilter = Request.Query["name"]!;
-            string emailFilter = Request.Query["email"]!;
+            StringBuilder nameFilter = new StringBuilder(Request.Query["name"]);
+            StringBuilder emailFilter =  new StringBuilder(Request.Query["email"]);
             string ageFilter = Request.Query["age"]!;
-            string page = Request.Query["page"]!;
+            string page = Request.Query["p"]!;
             IQueryable<User> set = _context.Users;
             switch (sortBy)
             {
@@ -54,32 +92,48 @@ namespace DotnetAPI.Controllers
                             "\t\"age:asc\"\n" +
                             "\t\"age:desc\"");
             }
-            if (!string.IsNullOrEmpty(nameFilter))
+            if (!string.IsNullOrEmpty(nameFilter.ToString()))
             {
-                set = set.Where(u => u.Name.Contains(nameFilter));
+                if (!Regex.IsMatch(nameFilter.ToString(), @".+:exact$"))
+                {
+                    set = set.Where(u => u.Name.Contains(nameFilter.ToString()));
+                } else
+                {
+                    nameFilter.Remove(nameFilter.Length-6, 6);
+                    set = set.Where(u => u.Name.Equals(nameFilter.ToString()));
+                    Console.WriteLine(nameFilter.ToString());
+                }
             }
-            if (!string.IsNullOrEmpty(emailFilter))
+            if (!string.IsNullOrEmpty(emailFilter.ToString()))
             {
-                set = set.Where(u => u.Email.Contains(emailFilter));
+                if (!Regex.IsMatch(emailFilter.ToString(), @".+:exact$"))
+                {
+                    set = set.Where(u => u.Email.Contains(emailFilter.ToString()));
+                } else
+                {
+                    emailFilter.Remove(emailFilter.Length-6, 6);
+                    set = set.Where(u => u.Email.Equals(emailFilter.ToString()));
+                    Console.WriteLine(emailFilter.ToString());
+                }
             }
             if (!string.IsNullOrEmpty(ageFilter))
             {
-                if (AgeRangeRegex().IsMatch(ageFilter))
+                if (Regex.IsMatch(ageFilter, @"^[\[]\d{1,3}[ ]TO[ ]\d{1,3}[\]]$"))
                 {
                     try
                     {
                         string[] ageFilterParts = ageFilter.Split("TO");
-                        int ageMin = Convert.ToInt16(AgeIntRegex().Match(ageFilterParts[0]).Value);
-                        int ageMax = Convert.ToInt16(AgeIntRegex().Match(ageFilterParts[1]).Value);
+                        int ageMin = Convert.ToInt16(Regex.Match(ageFilterParts[0], @"\d{1,3}").Value);
+                        int ageMax = Convert.ToInt16(Regex.Match(ageFilterParts[1], @"\d{1,3}").Value);
                         set = set.Where(u => u.DateOfBirth >= DateTime.Today.AddYears(-ageMax-1).AddDays(1)
                             && u.DateOfBirth <= DateTime.Today.AddYears(-ageMin));
                     } catch (Exception e)
                     {
                         return StatusCode(500, "Sorting failed due to exception: " + e.Message);
                     }
-                } else if (AgeSingleRegex().IsMatch(ageFilter))
+                } else if (Regex.IsMatch(ageFilter, @"^\d{1,3}$"))
                 {
-                    int age = Convert.ToInt16(AgeSingleRegex().Match(ageFilter).Value);
+                    int age = Convert.ToInt16(Regex.Match(ageFilter, @"^\d{1,3}$").Value);
                     set = set.Where(u => u.DateOfBirth >= DateTime.Today.AddYears(-age-1).AddDays(1)
                         && u.DateOfBirth <= DateTime.Today.AddYears(-age));
                 } else
@@ -91,8 +145,18 @@ namespace DotnetAPI.Controllers
             }
             if (!string.IsNullOrEmpty(page))
             {
-                int PageNumber = Convert.ToInt16(AgeSingleRegex().Match(page).Value);
-                var value = await set.Skip(PageNumber * PageLength).Take(PageLength).ToListAsync();
+                if (!Regex.IsMatch(page, @"^\d{1,8}$"))
+                {
+                    return BadRequest("Invalid format for value of page \"p\". Page must be a positive integer of up to 8 digits.\n\n" +
+                    "\"http://localhost:5152/users?p=1\" will retrieve the first page.\n" +
+                    "If the page requested is less than 1, the first page will be displayed.");
+                }
+                int PageNumber = Convert.ToInt32(Regex.Match(page, @"^\d{1,8}$").Value);
+                if (PageNumber < 1)
+                {
+                    PageNumber = 1;
+                }
+                var value = await set.Skip((PageNumber-1) * PageLength).Take(PageLength).ToListAsync();
                 return value;
             } else
             {
@@ -101,6 +165,12 @@ namespace DotnetAPI.Controllers
             }
         }
 
+        /// <summary>
+        /// Gets a specific user by ID.
+        /// </summary>
+        /// <param name="Id"> The ID of the user to get. </param>
+        /// <response code="200"> Returns the user. </response>
+        /// <response code="404"> Provides a message stating that the user does not exist. </response>
         [Route("users/{Id}")]
         [HttpGet]
         public async Task<ActionResult<User>> GetUser(Guid Id)
@@ -113,6 +183,28 @@ namespace DotnetAPI.Controllers
             return user;
         }
 
+        /// <summary>
+        /// Creates a new user.
+        /// </summary>
+        /// <remarks>
+        /// The Id, CreatedAt, and UpdatedAt values are generated.
+        /// These can safely be left out of the request body.
+        /// Adding these as part of the request body will not impact the generated values.
+        /// 
+        /// The user's date of birth can be in date format (YYYY-MM-DD) or DateTime format.
+        /// 
+        /// Sample Request:
+        /// 
+        ///     POST users/7aba7140-b70a-44e5-b7f3-f483c98aad30
+        ///     {
+        ///         "name": "John",
+        ///         "email": "john@gmail.com",
+        ///         "dateOfBirth": "1983-03-10"
+        ///     }
+        /// </remarks>
+        /// <param name="user"> The user information to be inserted. </param>
+        /// <response code="201"> Creates the user. </response>
+        /// <response code="400"> Refuses to create the user and provides a message describing why. </response>
         [Route("users")]
         [HttpPost]
         public async Task<ActionResult<User>> PostUser(User user)
@@ -140,6 +232,28 @@ namespace DotnetAPI.Controllers
             return Created();
         }
 
+        /// <summary>
+        /// Updates a specific user's details.
+        /// </summary>
+        /// <remarks>
+        /// The Id, CreatedAt, and UpdatedAt values are generated and cannot be updated via this request.
+        /// These can safely be left out of the request body.
+        /// Adding these as part of the request body will not impact the generated values.
+        /// 
+        /// The user's date of birth can be in date format (YYYY-MM-DD) or DateTime format.
+        /// 
+        /// Sample Request:
+        /// 
+        ///     PUT users/7aba7140-b70a-44e5-b7f3-f483c98aad30
+        ///     {
+        ///         "name": "Bob",
+        ///         "email": "bob@live.com",
+        ///         "dateOfBirth": "2008-03-10"
+        ///     }
+        /// </remarks>
+        /// <param name="Id"> The ID of the user to update. </param>
+        /// <param name="user"> The user information to be inserted. </param>
+        /// <returns></returns>
         [Route("users/{Id}")]
         [HttpPut]
         public async Task<ActionResult<User>> PutUser(Guid Id, User user)
@@ -169,6 +283,12 @@ namespace DotnetAPI.Controllers
             return Ok("Updated user.");
         }
 
+        /// <summary>
+        /// Deletes a specific user by ID.
+        /// </summary>
+        /// <param name="Id"> The ID of the user to be deleted. </param>
+        /// <response code="200"> Deletes the user. </response>
+        /// <response code="404"> Provides a message stating that a user with that ID does not exist. </response>
         [Route("users/{Id}")]
         [HttpDelete]
         public async Task<ActionResult<User>> DeleteUser(Guid Id)
@@ -182,16 +302,6 @@ namespace DotnetAPI.Controllers
             _context.SaveChanges();
             return Ok("Deleted user.");
         }
-
-        [GeneratedRegex(@"^[\[]\d{1,3}[ ]TO[ ]\d{1,3}[\]]$")]
-        private static partial Regex AgeRangeRegex(); // bonus: allows for a 1-line edit to change format later, if needed
-        [GeneratedRegex(@"^\d{1,3}$")]
-        private static partial Regex AgeSingleRegex(); // used to test *and* read single-age filter
-        [GeneratedRegex(@"\d{1,3}")]
-        private static partial Regex AgeIntRegex(); // used to read pre-tested (AgeRangeRegex) two-age filter
-        [GeneratedRegex(@"\d+")]
-        private static partial Regex numberRegex(); // used to read page #s, which could be *extremely* large numbers
-
         private static int PageLength = 5; // small page length/size so pagination can be seen with few users
     }
 }
