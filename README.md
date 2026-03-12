@@ -62,12 +62,14 @@ The following fields are usable in [/users](http://localhost:5152/users) GET req
 - The only error status codes that my code should create are the three listed (400, 404, 500).
 - Errors that are already handled and produce a message are acceptable as-is, so long as they do not cause further issues, such as the API crashing or failing to take in and act upon subsequent requests.
   - This refers to errors such as accessing a URL without a valid endpoint, such as [http://localhost:5152/fakeEndpoint](http://localhost:5152/fakeEndpoint).
+- There should only be a single issuer for JWTs, since they are all generated as part of the API.
+- There should only be a single audience type for JWTs, since the API is presumably intended purely for managing user entries.
 
 ## Additional Features
 
 ### Recommended
 - [x] Pagination on GET /users
-- [ ] JWT Authentication 
+- [x] JWT Authentication 
 - [ ] Unit Tests
 - [x] Swagger API Documentation
 - [ ] Deploy with Docker

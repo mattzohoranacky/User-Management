@@ -1,9 +1,9 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using DotnetAPI.Data;
-using Microsoft.AspNetCore.Http.HttpResults;
 using System.Text.RegularExpressions;
 using System.Text;
+using Microsoft.AspNetCore.Authorization;
 
 namespace DotnetAPI.Controllers
 {
@@ -11,6 +11,7 @@ namespace DotnetAPI.Controllers
     /// Controls all User-related requests.
     /// </summary>
     /// <param name="_context"></param>
+    [Authorize]
     [Route("~/")]
     [ApiController]
     public class UserController(ProgramDbContext _context) : ControllerBase

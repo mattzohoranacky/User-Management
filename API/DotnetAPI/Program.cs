@@ -1,10 +1,8 @@
-using DotnetAPI.Controllers;
 using DotnetAPI.Data;
 using Microsoft.EntityFrameworkCore;
-using Swashbuckle.AspNetCore.SwaggerUI;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.IdentityModel.Tokens;
+using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -25,75 +23,32 @@ builder.Services.AddSwaggerGen(c =>
     }
 });
 
-builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-.AddJwtBearer(jwtOptions =>
+var key = Encoding.ASCII.GetBytes("a_totally_legitimate_key_to_use_here");
+builder.Services.AddAuthentication(options =>
 {
-    jwtOptions.RequireHttpsMetadata=false;
-	jwtOptions.Authority = "http://localhost:7210";
-	jwtOptions.Audience = "https://localhost:5152";
-});
-
-builder.Services.AddAuthentication()
-.AddJwtBearer("some-scheme", jwtOptions =>
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+})
+.AddJwtBearer(options =>
 {
-	jwtOptions.MetadataAddress = builder.Configuration["Api:MetadataAddress"];
-	// Optional if the MetadataAddress is specified
-	jwtOptions.Authority = builder.Configuration["Api:Authority"];
-	jwtOptions.Audience = builder.Configuration["Api:Audience"];
-	jwtOptions.TokenValidationParameters = new TokenValidationParameters
-	{
-		ValidateIssuer = true,
-		ValidateAudience = true,
-		ValidateIssuerSigningKey = true,
-		ValidAudiences = builder.Configuration.GetSection("Api:ValidAudiences").Get<string[]>(),
-		ValidIssuers = builder.Configuration.GetSection("Api:ValidIssuers").Get<string[]>()
-	};
-
-	jwtOptions.MapInboundClaims = false;
+    options.RequireHttpsMetadata = false; // Should be true in production
+    options.SaveToken = true;
+    options.TokenValidationParameters = new TokenValidationParameters
+    {
+        ValidateIssuerSigningKey = true,
+        IssuerSigningKey = new SymmetricSecurityKey(key),
+        ValidateIssuer = true, // Set to true in production
+        ValidIssuer = "http://localhost:5152/auth/token",
+        ValidateAudience = false,
+        ValidAudience = "API user",
+        ClockSkew = TimeSpan.Zero
+    };
 });
-
-var requireAuthPolicy = new AuthorizationPolicyBuilder()
-	.RequireAuthenticatedUser()
-	.Build();
-
-builder.Services.AddAuthorizationBuilder()
-	.SetFallbackPolicy(requireAuthPolicy); // require authorization by default
-
-builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-.AddJwtBearer(jwtOptions =>
-{
-    jwtOptions.RequireHttpsMetadata=false;
-	jwtOptions.Authority = "http://localhost:7210";
-	jwtOptions.Audience = "https://localhost:5152";
-});
-
-builder.Services.AddAuthentication()
-.AddJwtBearer("some-scheme", jwtOptions =>
-{
-	jwtOptions.MetadataAddress = builder.Configuration["Api:MetadataAddress"];
-	// Optional if the MetadataAddress is specified
-	jwtOptions.Authority = builder.Configuration["Api:Authority"];
-	jwtOptions.Audience = builder.Configuration["Api:Audience"];
-	jwtOptions.TokenValidationParameters = new TokenValidationParameters
-	{
-		ValidateIssuer = true,
-		ValidateAudience = true,
-		ValidateIssuerSigningKey = true,
-		ValidAudiences = builder.Configuration.GetSection("Api:ValidAudiences").Get<string[]>(),
-		ValidIssuers = builder.Configuration.GetSection("Api:ValidIssuers").Get<string[]>()
-	};
-
-	jwtOptions.MapInboundClaims = false;
-});
-
-var requireAuthPolicy = new AuthorizationPolicyBuilder()
-	.RequireAuthenticatedUser()
-	.Build();
-
-builder.Services.AddAuthorizationBuilder()
-	.SetFallbackPolicy(requireAuthPolicy); // require authorization by default
 
 var app = builder.Build();
+app.UseAuthentication();
+app.UseRouting();
+app.UseAuthorization();
 app.MapControllers();
 
 // Configure the HTTP request pipeline.
@@ -108,7 +63,7 @@ if (app.Environment.IsDevelopment())
     });
 }
 
-app.MapSwagger();
+app.MapSwagger().AllowAnonymous();
 
 app.UseHttpsRedirection();
 
